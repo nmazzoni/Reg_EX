@@ -1,0 +1,111 @@
+import numpy as np
+import pandas as pd
+import yfinance as yf
+import datetime
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression, Ridge, RidgeCV, Lasso, LassoCV
+from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures
+from sklearn.model_selection import train_test_split
+
+day=int(input("Enter day:"))
+month=int(input("Enter month:"))
+year=int(input("Enter year:"))
+eday=int(input("Enter day:"))
+emonth=int(input("Enter month:"))
+eyear=int(input("Enter year:"))
+ticker1=input("Enter Ticker:")
+ticker2=input("Enter Ticker:")
+ticker3=input("Enter Ticker:")
+ticker4=input("Enter Ticker:")
+ticker5=input("Enter Ticker:")
+start=datetime.datetime(year,month,day)
+end=datetime.datetime(eyear,emonth,eday)
+df1=yf.download(ticker1,start=start,end=end)
+df2=yf.download(ticker2,start=start,end=end)
+df3=yf.download(ticker3,start=start,end=end)
+df4=yf.download(ticker4,start=start,end=end)
+df5=yf.download(ticker5,start=start,end=end)
+df1.drop(["High","Low","Close","Volume"], axis=1,inplace=True)
+df2.drop(["High","Low","Close","Volume"], axis=1,inplace=True)
+df3.drop(["High","Low","Close","Volume"], axis=1,inplace=True)
+df4.drop(["High","Low","Close","Volume"], axis=1,inplace=True)
+df5.drop(["High","Low","Close","Volume"], axis=1,inplace=True)
+df1.columns=[(ticker1+"Open"),(ticker1+"Adj Close")]
+df2.columns=[(ticker2+"Open"),(ticker2+"Adj Close")]
+df3.columns=[(ticker3+"Open"),(ticker3+"Adj Close")]
+df4.columns=[(ticker4+"Open"),(ticker4+"Adj Close")]
+df5.columns=[(ticker5+"Open"),(ticker5+"Adj Close")]
+df=pd.concat([df1,df2,df3,df4,df5],axis=1)
+sp500=yf.download("^GSPC",start=start,end=end)
+cashindex=yf.download("DX-Y.NYB",start=start,end=end)
+riskfree=yf.download("^TNX",start=start,end=end)
+sp500.drop(["Open","High","Low","Close","Volume"], axis=1,inplace=True)
+sp500.columns=["Nasdaq"]
+cashindex.drop(["Open","High","Low","Close","Volume"], axis=1,inplace=True)
+cashindex.columns=["Cash"]
+riskfree.drop(["Open","High","Low","Close","Volume"], axis=1,inplace=True)
+riskfree.columns=["10YTre"]
+jpmorgan=yf.download("JPM",start=start,end=end)
+jpmorgan.drop(["Open","High","Low","Close","Volume"],axis=1,inplace=True)
+jpmorgan.columns=["JPMorgan"]
+db=pd.concat([df,sp500,riskfree,cashindex,jpmorgan],axis=1)
+db.fillna(0,inplace=True)
+
+print(db.describe())
+
+
+x=db.drop(["JPMorgan"],axis=1)
+y=db["JPMorgan"]
+
+x_train,x_test,y_train,y_test=train_test_split(x,y,train_size=0.3)
+
+lr=LinearRegression()
+lr.fit(x_train,y_train)
+lrpredict=lr.predict(x_test)
+lr_score=r2_score(y_test,lrpredict)
+
+scaler=StandardScaler()
+x_s=scaler.fit_transform(x)
+
+x_train,x_test,y_train,y_test=train_test_split(x_s,y,train_size=0.3)
+lr.fit(x_train,y_train)
+lrs_predict=lr.predict(x_test)
+lrs_score=r2_score(y_test,lrs_predict)
+
+
+
+linear_scores=(lr_score, "\n",lrs_score,"\n")
+print(linear_scores)
+
+alphas=np.linspace(0.0001,1,20)
+rcv=RidgeCV(alphas=alphas,cv=4)
+rcv.fit(x,y)
+prcv=rcv.predict(x)
+rcvscore=r2_score(y,prcv)
+alphar=rcv.alpha_
+
+ridge=Ridge(alpha=alphar)
+ridge.fit(x_train,y_train)
+predictr=ridge.predict(x_test)
+ridgescore=r2_score(y_test,predictr)
+
+alphaslas=np.linspace(0.001,200,30)
+lascv=LassoCV(alphas=alphaslas,cv=4,max_iter=1000)
+lascv.fit(x,y)
+predlcv=lascv.predict(x)
+lcvscore=r2_score(y,predlcv)
+alphals=lascv.alpha_
+
+lasso=Lasso(alpha=1)
+lasso.fit(x_train,y_train)
+predlas=lasso.predict(x_test)
+lasscore=r2_score(y_test,predlas)
+
+coef=pd.DataFrame(zip(ridge.coef_,lasso.coef_,x.columns))
+
+scores=[lrs_score,lasscore,ridgescore]
+d_scores=pd.DataFrame(scores,["LinearSc","Lasso","Ridge"],["Scores"])
+
+
+
